@@ -1,4 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import {
+  mockQueue,
+  mockAllowedUsers,
+  MAX_QUEUE_SIZE,
+  checkRateLimit,
+  generateUserId,
+} from "@/lib/queue-utils";
 
 // Mock API configuration for simulating backend queue system
 // In production, these APIs will call to Backend Server
@@ -10,51 +17,6 @@ const MOCK_BACKEND_CONFIG = {
     getStats: "/api/queue/stats",
   },
 };
-
-// Simple in-memory queue for demo (replacing Redis)
-// In production, this will call APIs to Backend
-const mockQueue: Array<{ userId: string; joinedAt: number }> = [];
-const mockAllowedUsers: Set<string> = new Set();
-
-// Rate limiting for demo
-const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
-
-// Configuration
-const MAX_QUEUE_SIZE = 100;
-const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
-const RATE_LIMIT_MAX_REQUESTS = 10;
-
-// Simple rate limiter
-function checkRateLimit(identifier: string): {
-  allowed: boolean;
-  resetTime?: number;
-} {
-  const now = Date.now();
-  const key = identifier;
-
-  const existing = rateLimitStore.get(key);
-
-  if (!existing || now >= existing.resetTime) {
-    rateLimitStore.set(key, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
-    return { allowed: true };
-  }
-
-  if (existing.count >= RATE_LIMIT_MAX_REQUESTS) {
-    return { allowed: false, resetTime: existing.resetTime };
-  }
-
-  existing.count++;
-  return { allowed: true };
-}
-
-// Generate user ID from IP and user agent
-function generateUserId(request: NextRequest): string {
-  const forwarded = request.headers.get("x-forwarded-for");
-  const ip =
-    forwarded?.split(",")[0] || request.headers.get("x-real-ip") || "unknown";
-  const userAgent = request.headers.get("user-agent") || "unknown";
-  return `${ip}-${userAgent}`.replace(/[^a-zA-Z0-9-]/g, "");
-}
 
 // Mock function for calling Backend API (in the future)
 async function callBackendAPI(
@@ -264,25 +226,4 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-}
-
-// Function for admin to manage queue
-export function processQueue(count: number = 1) {
-  const processed = mockQueue.splice(0, count);
-  processed.forEach((user) => {
-    mockAllowedUsers.add(user.userId);
-  });
-  return {
-    processedCount: processed.length,
-    remainingInQueue: mockQueue.length,
-    processedUsers: processed.map((u) => u.userId),
-  };
-}
-
-export function getQueueStats() {
-  return {
-    totalInQueue: mockQueue.length,
-    allowedUsers: mockAllowedUsers.size,
-    oldestInQueue: mockQueue.length > 0 ? mockQueue[0].joinedAt : null,
-  };
 }

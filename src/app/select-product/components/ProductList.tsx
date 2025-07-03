@@ -18,6 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AlertTriangle, Package, Plus, Minus, RefreshCw } from "lucide-react";
 import { logger } from "@/lib/logger";
 import { CONSTANTS, PRODUCT_TYPES } from "@/lib/constants";
+import Image from "next/image";
 
 // Product interface
 interface Product {
@@ -57,7 +58,7 @@ const fetchProducts = async (): Promise<Product[]> => {
               1)
         ) + CONSTANTS.STOCK_RANGE.A4_PAPER.min,
       maxPerOrder: 10,
-      icon: "📄",
+      icon: "/A4.svg",
     },
     {
       id: PRODUCT_TYPES.CONTINUOUS_GOLD,
@@ -73,7 +74,7 @@ const fetchProducts = async (): Promise<Product[]> => {
               1)
         ) + CONSTANTS.STOCK_RANGE.CONTINUOUS_PAPER.min,
       maxPerOrder: 5,
-      icon: "📦",
+      icon: "/Continuous.svg",
     },
   ];
 };
@@ -215,7 +216,16 @@ const ProductCard = ({ product }: { product: Product }) => {
     <Card className="w-full transition-all hover:shadow-md">
       <CardHeader className="text-center">
         <CardTitle className="flex flex-col items-center gap-3">
-          <span className="text-4xl">{product.icon}</span>
+          <div className="w-16 h-16 flex items-center justify-center">
+            <Image
+              src={product.icon}
+              alt={product.name}
+              width={64}
+              height={64}
+              className="w-full h-full object-contain"
+              unoptimized
+            />
+          </div>
           <div>
             <div className="text-xl">{product.name}</div>
             <div className="text-sm font-normal text-muted-foreground">

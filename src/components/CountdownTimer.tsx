@@ -110,7 +110,9 @@ export function CountdownTimer() {
                 >
                   {formatNumber(timeLeft.days)}
                 </div>
-                <div className={`text-xs font-medium ${glassClasses.text.muted}`}>
+                <div
+                  className={`text-xs font-medium ${glassClasses.text.muted}`}
+                >
                   Days
                 </div>
               </GlassContainer>
@@ -128,7 +130,9 @@ export function CountdownTimer() {
                 >
                   {formatNumber(timeLeft.hours)}
                 </div>
-                <div className={`text-xs font-medium ${glassClasses.text.muted}`}>
+                <div
+                  className={`text-xs font-medium ${glassClasses.text.muted}`}
+                >
                   Hours
                 </div>
               </GlassContainer>
@@ -146,7 +150,9 @@ export function CountdownTimer() {
                 >
                   {formatNumber(timeLeft.minutes)}
                 </div>
-                <div className={`text-xs font-medium ${glassClasses.text.muted}`}>
+                <div
+                  className={`text-xs font-medium ${glassClasses.text.muted}`}
+                >
                   Minutes
                 </div>
               </GlassContainer>
@@ -164,7 +170,9 @@ export function CountdownTimer() {
                 >
                   {formatNumber(timeLeft.seconds)}
                 </div>
-                <div className={`text-xs font-medium ${glassClasses.text.muted}`}>
+                <div
+                  className={`text-xs font-medium ${glassClasses.text.muted}`}
+                >
                   Seconds
                 </div>
               </GlassContainer>

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { processQueue, getQueueStats } from "@/app/api/queue/status/route";
+import { processQueue, getQueueStats } from "@/lib/queue-utils";
 
 // Mock Admin API for queue management
 export async function POST(request: NextRequest) {
