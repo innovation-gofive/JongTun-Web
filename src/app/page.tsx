@@ -1,103 +1,211 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { JoinQueueButton } from "@/components/JoinQueueButton";
+import { CountdownTimer } from "@/components/CountdownTimer";
+import { GlassContainer, glassClasses } from "@/components/ui/glass";
+
+export default function HomePage() {
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <main
+      className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-100 to-pink-100 flex flex-col relative overflow-hidden"
+      style={{
+        backgroundImage: "url('./images/backgrounds/bg.jpg')",
+        backgroundSize: "cover",
+        backgroundPosition: "center center",
+        backgroundRepeat: "no-repeat",
+        backgroundAttachment: "fixed",
+      }}
+    >
+      {/* Overlay temporarily removed to test background image */}
+      {/* <div className="absolute inset-0 bg-gradient-to-br from-indigo-50/30 via-purple-50/30 to-pink-50/30 z-10"></div> */}
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+      <div className="container mx-auto px-4 py-8 flex-1 flex flex-col relative z-20">
+        <div className="max-w-5xl mx-auto flex-1 flex flex-col">
+          {" "}
+          {/* Hero Glass Card - True Apple Liquid Glass Material */}
+          <GlassContainer
+            variant="primary"
+            padding="xl"
+            className="mb-8 overflow-hidden"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+            <div className="relative z-10">
+              <div className="text-center">
+                {/* Title Section - Apple style text on glass */}
+                <div className="mb-8">
+                  <h1
+                    className={`text-7xl md:text-8xl font-bold tracking-tight mb-8 leading-tight pb-4 ${glassClasses.text.primary}`}
+                  >
+                    Jong Tun
+                  </h1>
+                </div>
+
+                {/* Subtitle with proper contrast on glass */}
+                <p
+                  className={`text-2xl md:text-3xl mb-8 max-w-3xl mx-auto leading-relaxed font-light ${glassClasses.text.secondary}`}
+                >
+                  tun gor jong mai tun gor mai tong jong
+                </p>
+              </div>
+            </div>
+          </GlassContainer>
+          {/* Countdown Timer Glass Container - Apple Liquid Glass */}
+          <GlassContainer variant="secondary" padding="md" className="mb-8">
+            <div className="relative z-10">
+              <CountdownTimer />
+            </div>
+          </GlassContainer>
+          {/* Join Queue Section - Apple Liquid Glass */}
+          <div className="flex-1 flex items-center justify-center">
+            <GlassContainer
+              variant="secondary"
+              padding="lg"
+              className="text-center max-w-md w-full hover:shadow-[0_12px_40px_rgba(0,0,0,0.08),inset_0_1px_0_rgba(255,255,255,0.2)] transition-all duration-300"
+            >
+              <div className="relative z-10">
+                <JoinQueueButton />
+              </div>
+            </GlassContainer>
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+      </div>
+      {/* Enhanced CSS for True iOS 26 Liquid Glass animations */}
+      <style jsx>{`
+        @keyframes float {
+          0%,
+          100% {
+            transform: translateY(0px) rotate(0deg);
+            opacity: 0.9;
+          }
+          33% {
+            transform: translateY(-20px) rotate(3deg) scale(1.02);
+            opacity: 1;
+          }
+          66% {
+            transform: translateY(-12px) rotate(-2deg) scale(0.98);
+            opacity: 0.95;
+          }
+        }
+
+        @keyframes shimmer {
+          0% {
+            transform: translateX(-100%) scaleX(1);
+            opacity: 0;
+          }
+          50% {
+            opacity: 0.8;
+            transform: translateX(0%) scaleX(1.2);
+          }
+          100% {
+            transform: translateX(100%) scaleX(1);
+            opacity: 0;
+          }
+        }
+
+        @keyframes spin-slow {
+          from {
+            transform: rotate(0deg) scale(1);
+          }
+          50% {
+            transform: rotate(180deg) scale(1.05);
+          }
+          to {
+            transform: rotate(360deg) scale(1);
+          }
+        }
+
+        @keyframes spin-reverse {
+          from {
+            transform: rotate(360deg) scale(1);
+          }
+          50% {
+            transform: rotate(180deg) scale(0.95);
+          }
+          to {
+            transform: rotate(0deg) scale(1);
+          }
+        }
+
+        @keyframes spin-slow-reverse {
+          from {
+            transform: rotate(180deg) scale(1);
+          }
+          to {
+            transform: rotate(-180deg) scale(1);
+          }
+        }
+
+        /* Enhanced backdrop blur with iOS 26 liquid glass properties */
+        .backdrop-blur-lg {
+          backdrop-filter: blur(20px) saturate(110%) brightness(102%);
+        }
+
+        .backdrop-blur-xl {
+          backdrop-filter: blur(30px) saturate(110%) brightness(102%);
+        }
+
+        .backdrop-blur-2xl {
+          backdrop-filter: blur(40px) saturate(115%) brightness(104%);
+        }
+
+        .backdrop-blur-3xl {
+          backdrop-filter: blur(50px) saturate(120%) brightness(105%);
+        }
+
+        /* iOS 26 liquid glass morphing effects */
+        .group:hover .backdrop-blur-xl {
+          backdrop-filter: blur(35px) saturate(115%) brightness(104%);
+          transition: backdrop-filter 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+
+        .group:hover .backdrop-blur-2xl {
+          backdrop-filter: blur(45px) saturate(125%) brightness(106%);
+          transition: backdrop-filter 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+
+        /* Advanced glass refraction effects */
+        .group:hover {
+          transform: translateY(-2px) scale(1.01);
+          box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08),
+            0 0 20px rgba(255, 255, 255, 0.05) inset,
+            0 1px 0 rgba(255, 255, 255, 0.08) inset;
+          transition: all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+
+        /* Simple animations for liquid glass */
+        .animate-float {
+          animation: float 12s ease-in-out infinite;
+          will-change: transform, opacity;
+        }
+
+        .animate-shimmer {
+          animation: shimmer 4s ease-in-out infinite;
+        }
+
+        /* Enhanced delay classes for staggered animations */
+        .animate-float.delay-300 {
+          animation-delay: 0.3s;
+        }
+        .animate-float.delay-700 {
+          animation-delay: 0.7s;
+        }
+        .animate-float.delay-800 {
+          animation-delay: 0.8s;
+        }
+        .animate-float.delay-1000 {
+          animation-delay: 1s;
+        }
+        .animate-float.delay-1200 {
+          animation-delay: 1.2s;
+        }
+        .animate-float.delay-1500 {
+          animation-delay: 1.5s;
+        }
+
+        /* Radial gradient utility */
+        .bg-gradient-radial {
+          background: radial-gradient(circle, var(--tw-gradient-stops));
+        }
+      `}</style>
+    </main>
   );
 }

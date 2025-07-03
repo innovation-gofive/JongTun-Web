@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Queue Admin Panel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-gray-100 min-h-screen p-8">
+    <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-lg p-6">
+      <h1 class="text-3xl font-bold mb-6 text-gray-800">Queue Admin Panel</h1>
+
+      <!-- Current Stats -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div class="bg-blue-50 p-4 rounded-lg">
+          <h3 class="font-semibold text-blue-800">Total in Queue</h3>
+          <p class="text-2xl font-bold text-blue-600" id="totalInQueue">-</p>
+        </div>
+        <div class="bg-green-50 p-4 rounded-lg">
+          <h3 class="font-semibold text-green-800">Allowed Users</h3>
+          <p class="text-2xl font-bold text-green-600" id="allowedUsers">-</p>
+        </div>
+        <div class="bg-purple-50 p-4 rounded-lg">
+          <h3 class="font-semibold text-purple-800">Oldest Entry</h3>
+          <p class="text-sm font-bold text-purple-600" id="oldestEntry">-</p>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="space-y-4 mb-8">
+        <button
+          onclick="processQueue()"
+          class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold"
+        >
+          Process Queue (Allow 5 Users)
+        </button>
+
+        <button
+          onclick="refreshStats()"
+          class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold ml-4"
+        >
+          Refresh Stats
+        </button>
+      </div>
+
+      <!-- Log -->
+      <div class="bg-gray-50 p-4 rounded-lg">
+        <h3 class="font-semibold mb-2">Activity Log</h3>
+        <div id="log" class="text-sm text-gray-600 max-h-40 overflow-y-auto">
+          <!-- Log entries will appear here -->
+        </div>
+      </div>
+    </div>
+
+    <script>
+      function addLog(message) {
+        const log = document.getElementById("log");
+        const timestamp = new Date().toLocaleTimeString();
+        log.innerHTML += `<div>[${timestamp}] ${message}</div>`;
+        log.scrollTop = log.scrollHeight;
+      }
+
+      async function processQueue() {
+        try {
+          const response = await fetch("/api/queue/admin", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "process" }),
+          });
+
+          const result = await response.json();
+          addLog(`Processed queue: ${result.message}`);
+          addLog(
+            `${result.processedCount} users allowed, ${result.remainingInQueue} remaining`
+          );
+
+          // Refresh stats after processing
+          setTimeout(refreshStats, 500);
+        } catch (error) {
+          addLog(`Error processing queue: ${error.message}`);
+        }
+      }
+
+      async function refreshStats() {
+        try {
+          const response = await fetch("/api/queue/admin");
+          const result = await response.json();
+
+          document.getElementById("totalInQueue").textContent =
+            result.stats.totalInQueue;
+          document.getElementById("allowedUsers").textContent =
+            result.stats.allowedUsers;
+
+          const oldestTime = result.stats.oldestInQueue;
+          if (oldestTime) {
+            const timeAgo = Math.floor((Date.now() - oldestTime) / 1000);
+            document.getElementById(
+              "oldestEntry"
+            ).textContent = `${timeAgo}s ago`;
+          } else {
+            document.getElementById("oldestEntry").textContent = "N/A";
+          }
+
+          addLog("Stats refreshed");
+        } catch (error) {
+          addLog(`Error refreshing stats: ${error.message}`);
+        }
+      }
+
+      // Auto-refresh stats every 5 seconds
+      setInterval(refreshStats, 5000);
+
+      // Initial load
+      refreshStats();
+      addLog("Admin panel loaded");
+    </script>
+  </body>
+</html>
