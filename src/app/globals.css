@@ -120,3 +120,126 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Enhanced Shimmer Animation for Button */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-150%) skewX(-20deg);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+    transform: translateX(0%) skewX(-20deg);
+  }
+  85% {
+    opacity: 0.4;
+  }
+  100% {
+    transform: translateX(150%) skewX(-20deg);
+    opacity: 0;
+  }
+}
+
+/* Pulse glow effect for the button */
+@keyframes pulseGlow {
+  0%,
+  100% {
+    box-shadow: 0 8px 32px rgba(255, 255, 255, 0.2),
+      0 0 0 1px rgba(255, 255, 255, 0.1),
+      inset 0 1px 2px rgba(255, 255, 255, 0.1);
+  }
+  50% {
+    box-shadow: 0 12px 40px rgba(255, 255, 255, 0.3),
+      0 0 0 2px rgba(255, 255, 255, 0.2),
+      inset 0 1px 3px rgba(255, 255, 255, 0.15);
+  }
+}
+
+/* Subtle background pulse */
+@keyframes backgroundPulse {
+  0%,
+  100% {
+    background-size: 100% 100%;
+    filter: brightness(1);
+  }
+  50% {
+    background-size: 102% 102%;
+    filter: brightness(1.1);
+  }
+}
+
+/* Gentle floating effect */
+@keyframes gentleFloat {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+}
+
+/* Dialog animations */
+@keyframes dialogFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes dialogZoomIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes dialogSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-in {
+  animation-fill-mode: both;
+}
+
+.fade-in-0 {
+  animation: dialogFadeIn 0.2s ease-out;
+}
+
+.zoom-in-95 {
+  animation: dialogZoomIn 0.2s ease-out;
+}
+
+.slide-in-from-top {
+  animation: dialogSlideIn 0.2s ease-out;
+}
+
+.duration-200 {
+  animation-duration: 0.2s;
+}
+
+/* Glass effect for dialog */
+.glass-effect {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25),
+    0 0 0 1px rgba(255, 255, 255, 0.1), inset 0 1px 2px rgba(255, 255, 255, 0.1);
+}

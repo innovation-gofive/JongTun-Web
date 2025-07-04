@@ -183,22 +183,25 @@ const ProductCard = ({ product }: { product: Product }) => {
   };
 
   const handleSelectProduct = () => {
-    logger.log("Selecting product:", product.name, "Quantity:", localQuantity);
+    logger.log("Selecting product:", {
+      productName: product.name,
+      quantity: localQuantity,
+    });
     updateProductAndQuantity(product.name, product.id, localQuantity);
   };
 
   const handleChangeProduct = () => {
-    logger.log(
-      "Changing to product:",
-      product.name,
-      "Quantity:",
-      localQuantity
-    );
+    logger.log("Changing to product:", {
+      productName: product.name,
+      quantity: localQuantity,
+    });
     updateProductAndQuantity(product.name, product.id, localQuantity);
   };
 
   const handleProceedToBranch = () => {
-    logger.log("Proceeding to branch selection...");
+    logger.log("Proceeding to branch selection...", {
+      action: "navigate_to_branch_selection",
+    });
     router.push("/select-branch");
   };
 

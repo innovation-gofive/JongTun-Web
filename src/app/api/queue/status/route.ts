@@ -1,228 +1,337 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
+  generateUserId,
+  getQueuePosition,
+  isUserAllowed,
+  getQueueStats,
   mockQueue,
   mockAllowedUsers,
-  MAX_QUEUE_SIZE,
-  checkRateLimit,
-  generateUserId,
 } from "@/lib/queue-utils";
+import {
+  QueueError,
+  InvalidInputError,
+  RetryManager,
+  CircuitBreaker,
+  FallbackQueueManager,
+  validateInput,
+  mockVerifyCSRF,
+  logEvent,
+} from "@/lib/error-handling";
+import { autoQueueProcessor } from "@/lib/auto-queue-processor";
 
-// Mock API configuration for simulating backend queue system
-// In production, these APIs will call to Backend Server
-const MOCK_BACKEND_CONFIG = {
-  baseUrl: process.env.BACKEND_API_URL || "https://api.example.com",
-  endpoints: {
-    joinQueue: "/api/queue/join",
-    checkStatus: "/api/queue/status",
-    getStats: "/api/queue/stats",
-  },
-};
+// Initialize Circuit Breaker for status operations
+const statusCircuitBreaker = new CircuitBreaker(5, 15000); // 5 failures, 15s timeout
+const fallbackManager = FallbackQueueManager.getInstance();
 
-// Mock function for calling Backend API (in the future)
-async function callBackendAPI(
-  endpoint: string,
-  data?: Record<string, unknown>
-): Promise<{ success: boolean; mock: boolean }> {
-  // In production, this will call fetch() to Backend
-  // const response = await fetch(`${MOCK_BACKEND_CONFIG.baseUrl}${endpoint}`, {
-  //   method: data ? 'POST' : 'GET',
-  //   headers: { 'Content-Type': 'application/json' },
-  //   body: data ? JSON.stringify(data) : undefined
-  // });
-  // return response.json();
-
-  // Mock response for demo
-  console.log(`[MOCK] Backend API call: ${endpoint}`, data);
-  return { success: true, mock: true };
-}
-
-interface QueueResponse {
-  status: "allowed" | "waiting" | "rate_limited";
-  position?: number;
-  totalInQueue?: number;
-  estimatedWaitMinutes?: number;
-  message?: string;
-}
-
-// POST: Join queue
-export async function POST(request: NextRequest) {
+// Self-Service Queue Status API (No Admin Required)
+export async function GET(request: NextRequest) {
   try {
-    const userId = generateUserId(request);
+    logEvent("STATUS_API_REQUEST", {
+      method: "GET",
+      timestamp: new Date().toISOString(),
+    });
 
-    // Check rate limit
-    const { allowed, resetTime } = checkRateLimit(userId);
+    const url = new URL(request.url);
+    const userId = url.searchParams.get("userId");
+    const csrfToken = request.headers.get("X-CSRF-Token");
 
-    if (!allowed) {
-      return NextResponse.json(
+    // Generate user ID if not provided
+    const actualUserId = userId || generateUserId(request);
+
+    // Security: CSRF Protection (optional for GET requests)
+    if (csrfToken) {
+      mockVerifyCSRF(csrfToken);
+    }
+
+    // Input validation
+    if (userId) {
+      validateInput(
+        { userId },
         {
-          status: "rate_limited",
-          message: `Too many requests. Please wait and try again. Reset at ${new Date(
-            resetTime!
-          ).toLocaleString("en-US")}`,
-        } as QueueResponse,
-        { status: 429 }
+          userId: (v: unknown) => typeof v === "string" && v.length > 0,
+        }
       );
     }
 
-    // Call Mock Backend API (will be real API in the future)
-    await callBackendAPI(MOCK_BACKEND_CONFIG.endpoints.joinQueue, {
-      userId,
-      timestamp: Date.now(),
+    // Use Circuit Breaker for status operations
+    const result = await statusCircuitBreaker.execute(async () => {
+      return await RetryManager.withRetry(async () => {
+        // Auto-start queue processor if not running (Self-Service Mode)
+        if (!autoQueueProcessor.getStatus().isRunning) {
+          autoQueueProcessor.start();
+          logEvent("AUTO_QUEUE_PROCESSOR_STARTED", {
+            reason: "Status check triggered auto-start",
+            userId: actualUserId,
+          });
+        }
+
+        // Check if fallback mode is active
+        if (fallbackManager.isInFallbackMode()) {
+          logEvent("FALLBACK_MODE_STATUS_CHECK", {
+            fallbackQueueSize: fallbackManager.getFallbackQueueSize(),
+            userId: actualUserId,
+          });
+
+          return {
+            success: true,
+            data: {
+              userId: actualUserId,
+              position: fallbackManager.getFallbackQueuePosition(actualUserId),
+              estimatedWaitMinutes: Math.max(
+                5,
+                fallbackManager.getFallbackQueueSize() * 2
+              ),
+              totalInQueue: fallbackManager.getFallbackQueueSize(),
+              isAllowed: false,
+              isInQueue: true,
+              joinedAt: new Date().toISOString(),
+              lastUpdated: new Date().toISOString(),
+              status: "waiting",
+              message: "System is in fallback mode - please wait",
+              systemMode: "fallback",
+              autoProcessing: false,
+            },
+          };
+        }
+
+        // Get real queue status for Self-Service mode
+        const position = getQueuePosition(actualUserId);
+        const isAllowed = isUserAllowed(actualUserId);
+        const stats = getQueueStats();
+        const autoStatus = autoQueueProcessor.getStatus();
+
+        // Determine user status
+        let status: string;
+        let message: string;
+        let isInQueue: boolean;
+
+        if (isAllowed) {
+          status = "allowed";
+          message = "You are now allowed to proceed to product selection";
+          isInQueue = false;
+        } else if (position && position > 0) {
+          status = "waiting";
+          message = `You are in position ${position} of ${stats.totalInQueue}`;
+          isInQueue = true;
+        } else {
+          status = "not_in_queue";
+          message = "You are not currently in the queue";
+          isInQueue = false;
+        }
+
+        const responseData = {
+          userId: actualUserId,
+          position: position && position > 0 ? position : null,
+          estimatedWaitMinutes:
+            position && position > 0
+              ? Math.max(1, Math.ceil(position * 0.5))
+              : null,
+          totalInQueue: stats.totalInQueue,
+          allowedUsers: stats.allowedUsers,
+          isAllowed,
+          isInQueue,
+          joinedAt: stats.oldestInQueue,
+          lastUpdated: new Date().toISOString(),
+          status,
+          message,
+          systemMode: "self-service",
+          autoProcessing: {
+            enabled: autoStatus.isRunning,
+            config: autoStatus.config,
+            nextProcessingIn: autoStatus.config.processingInterval,
+            isWithinBusinessHours: autoStatus.isWithinBusinessHours,
+          },
+        };
+
+        logEvent("QUEUE_STATUS_SUCCESS", {
+          userId: actualUserId,
+          position,
+          status,
+          autoProcessing: autoStatus.isRunning,
+        });
+
+        return {
+          success: true,
+          data: responseData,
+        };
+      });
     });
 
-    // Check if user is already allowed
-    if (mockAllowedUsers.has(userId)) {
-      return NextResponse.json({
-        status: "allowed",
-        message: "You are already authorized to proceed",
-      } as QueueResponse);
-    }
-
-    // Check if user is already in queue
-    const userInQueue = mockQueue.find((item) => item.userId === userId);
-
-    if (userInQueue) {
-      const userPosition =
-        mockQueue.findIndex((item) => item.userId === userId) + 1;
-      const estimatedWaitTime = Math.max(1, Math.floor(userPosition / 5)) * 2;
-
-      return NextResponse.json({
-        status: "waiting",
-        position: userPosition,
-        totalInQueue: mockQueue.length,
-        estimatedWaitMinutes: estimatedWaitTime,
-        message: `You are already in queue. Position ${userPosition} of ${mockQueue.length}`,
-      } as QueueResponse);
-    }
-
-    // Check if queue is full
-    if (mockQueue.length >= MAX_QUEUE_SIZE) {
-      return NextResponse.json({
-        status: "waiting",
-        message: "Queue is full. Please try again later",
-        totalInQueue: mockQueue.length,
-      } as QueueResponse);
-    }
-
-    // Add user to queue
-    mockQueue.push({
-      userId,
-      joinedAt: Date.now(),
-    });
-
-    const userPosition = mockQueue.length;
-    const estimatedWaitTime = Math.max(1, Math.floor(userPosition / 5)) * 2;
-
-    // For demo purposes: if user is position 1-3, allow them immediately
-    if (userPosition <= 3) {
-      // Remove user from queue and add to allowed users
-      const userIndex = mockQueue.findIndex((item) => item.userId === userId);
-      if (userIndex !== -1) {
-        mockQueue.splice(userIndex, 1);
-        mockAllowedUsers.add(userId);
-      }
-
-      return NextResponse.json({
-        status: "allowed",
-        message: "You have been granted access to make a reservation",
-      } as QueueResponse);
-    }
-
-    return NextResponse.json({
-      status: "waiting",
-      position: userPosition,
-      totalInQueue: mockQueue.length,
-      estimatedWaitMinutes: estimatedWaitTime,
-      message: `You joined the queue. Position ${userPosition} of ${mockQueue.length}`,
-    } as QueueResponse);
+    return NextResponse.json(result);
   } catch (error) {
-    console.error("Queue API error:", error);
+    logEvent("STATUS_API_ERROR", {
+      error: error instanceof Error ? error.message : "Unknown error",
+      timestamp: new Date().toISOString(),
+    });
+
+    if (error instanceof InvalidInputError) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Invalid input",
+          message: error.message,
+        },
+        { status: 400 }
+      );
+    }
+
+    if (error instanceof QueueError) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Queue error",
+          message: error.message,
+        },
+        { status: 500 }
+      );
+    }
+
+    // Fallback response for unexpected errors
     return NextResponse.json(
       {
-        status: "waiting",
-        message: "Queue service error. Please try again",
-      } as QueueResponse,
+        success: false,
+        error: "Internal server error",
+        message: "An unexpected error occurred",
+        fallbackMode: fallbackManager.isInFallbackMode(),
+      },
       { status: 500 }
     );
   }
 }
 
-// GET: Check queue status
-export async function GET(request: NextRequest) {
+// Self-Service Queue Status Update API (Leave Queue / Update Status)
+export async function POST(request: NextRequest) {
   try {
-    const userId = generateUserId(request);
+    logEvent("STATUS_UPDATE_REQUEST", {
+      method: "POST",
+      timestamp: new Date().toISOString(),
+    });
 
-    // Check rate limit (more lenient than POST)
-    const { allowed } = checkRateLimit(`get_${userId}`);
+    const body = await request.json();
+    const csrfToken = request.headers.get("X-CSRF-Token");
 
-    if (!allowed) {
+    // Security: CSRF Protection
+    mockVerifyCSRF(csrfToken || undefined);
+
+    // Input validation
+    validateInput(body, {
+      userId: (v: unknown) => typeof v === "string" && v.length > 0,
+      action: (v: unknown) =>
+        typeof v === "string" && ["leave", "refresh", "ping"].includes(v),
+    });
+
+    const { userId, action } = body;
+
+    // Use Circuit Breaker for status update operations
+    const result = await statusCircuitBreaker.execute(async () => {
+      return await RetryManager.withRetry(async () => {
+        // Ensure auto-processor is running
+        if (!autoQueueProcessor.getStatus().isRunning) {
+          autoQueueProcessor.start();
+          logEvent("AUTO_QUEUE_PROCESSOR_STARTED", {
+            reason: "Status update triggered auto-start",
+            userId,
+            action,
+          });
+        }
+
+        switch (action) {
+          case "leave":
+            logEvent("QUEUE_LEAVE_REQUEST", { userId });
+
+            // Remove user from queue and allowed users
+            const queueIndex = mockQueue.findIndex(
+              (user) => user.userId === userId
+            );
+            if (queueIndex !== -1) {
+              mockQueue.splice(queueIndex, 1);
+            }
+            mockAllowedUsers.delete(userId);
+
+            const leaveResult = {
+              success: true,
+              message: "Successfully left the queue",
+              userId,
+              leftAt: new Date().toISOString(),
+              remainingInQueue: mockQueue.length,
+              systemMode: "self-service",
+            };
+
+            logEvent("QUEUE_LEFT_SUCCESS", {
+              userId,
+              remainingInQueue: mockQueue.length,
+            });
+
+            return leaveResult;
+
+          case "refresh":
+          case "ping":
+            logEvent("QUEUE_REFRESH_REQUEST", { userId, action });
+
+            // Return current status without making changes
+            const position = getQueuePosition(userId);
+            const isAllowed = isUserAllowed(userId);
+            const stats = getQueueStats();
+
+            const refreshResult = {
+              success: true,
+              message: "Queue status refreshed",
+              userId,
+              position: position && position > 0 ? position : null,
+              isAllowed,
+              isInQueue: position !== null && position > 0,
+              totalInQueue: stats.totalInQueue,
+              allowedUsers: stats.allowedUsers,
+              updatedAt: new Date().toISOString(),
+              systemMode: "self-service",
+              autoProcessing: autoQueueProcessor.getStatus().isRunning,
+            };
+
+            return refreshResult;
+
+          default:
+            throw new InvalidInputError(`Unknown action: ${action}`);
+        }
+      });
+    });
+
+    return NextResponse.json(result);
+  } catch (error) {
+    logEvent("STATUS_UPDATE_ERROR", {
+      error: error instanceof Error ? error.message : "Unknown error",
+      timestamp: new Date().toISOString(),
+    });
+
+    if (error instanceof InvalidInputError) {
       return NextResponse.json(
         {
-          status: "rate_limited",
-          message: "Too many status checks. Please wait a moment",
-        } as QueueResponse,
-        { status: 429 }
+          success: false,
+          error: "Invalid input",
+          message: error.message,
+        },
+        { status: 400 }
       );
     }
 
-    // Call Mock Backend API to check status
-    await callBackendAPI(MOCK_BACKEND_CONFIG.endpoints.checkStatus, {
-      userId,
-    });
-
-    // Check if user is allowed
-    if (mockAllowedUsers.has(userId)) {
-      return NextResponse.json({
-        status: "allowed",
-        message: "You are authorized to proceed",
-      } as QueueResponse);
+    if (error instanceof QueueError) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Queue error",
+          message: error.message,
+        },
+        { status: 500 }
+      );
     }
 
-    // Check if user is in queue
-    const userInQueue = mockQueue.find((item) => item.userId === userId);
-
-    if (userInQueue) {
-      const userPosition =
-        mockQueue.findIndex((item) => item.userId === userId) + 1;
-      const estimatedWaitTime = Math.max(1, Math.floor(userPosition / 5)) * 2;
-
-      // For demo purposes: if user is position 1-3, allow them immediately
-      if (userPosition <= 3) {
-        // Remove user from queue and add to allowed users
-        const userIndex = mockQueue.findIndex((item) => item.userId === userId);
-        if (userIndex !== -1) {
-          mockQueue.splice(userIndex, 1);
-          mockAllowedUsers.add(userId);
-        }
-
-        return NextResponse.json({
-          status: "allowed",
-          message: "You have been granted access to make a reservation",
-        } as QueueResponse);
-      }
-
-      return NextResponse.json({
-        status: "waiting",
-        position: userPosition,
-        totalInQueue: mockQueue.length,
-        estimatedWaitMinutes: estimatedWaitTime,
-        message: `You are in queue. Position ${userPosition} of ${mockQueue.length}`,
-      } as QueueResponse);
-    }
-
-    // User is not in queue
-    return NextResponse.json({
-      status: "waiting",
-      totalInQueue: mockQueue.length,
-      message: `Current queue has ${mockQueue.length} people. You need to join the queue first`,
-    } as QueueResponse);
-  } catch (error) {
-    console.error("Queue status check error:", error);
+    // Fallback response for unexpected errors
     return NextResponse.json(
       {
-        status: "waiting",
-        message: "Unable to check queue status. Please try again",
-      } as QueueResponse,
+        success: false,
+        error: "Internal server error",
+        message: "An unexpected error occurred",
+        fallbackMode: fallbackManager.isInFallbackMode(),
+      },
       { status: 500 }
     );
   }

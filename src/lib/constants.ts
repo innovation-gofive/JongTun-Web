@@ -1,8 +1,8 @@
 // Constants for the application
 export const CONSTANTS = {
   // API Configuration
-  API_DELAY: 800, // ms
-  API_FAILURE_RATE: 0.3, // 30% chance of failure for testing
+  API_DELAY: 500, // ms - Reduced for better performance
+  API_FAILURE_RATE: 0.1, // 10% chance of failure for testing (reduced from 30%)
 
   // Query Configuration
   RETRY_ATTEMPTS: 3,
@@ -16,12 +16,12 @@ export const CONSTANTS = {
     CONTINUOUS_PAPER: { min: 5, max: 34 },
   },
 
-  // Branch Configuration
+  // Branch Configuration - Increased capacity for 5,000 users
   BRANCH_CAPACITY: {
-    DOWNTOWN: 50,
-    RIVERSIDE: 30,
-    UPTOWN: 40,
-    SUBURBAN: 25,
+    DOWNTOWN: 150,
+    RIVERSIDE: 100,
+    UPTOWN: 120,
+    SUBURBAN: 80,
   },
 
   // Cache Configuration
@@ -34,6 +34,15 @@ export const CONSTANTS = {
   // Reservation Configuration
   RESERVATION_HOLD_TIME: 24, // hours
   RESERVATION_ID_PREFIX: "GCP-",
+
+  // Queue Configuration - For 5,000 concurrent users
+  QUEUE: {
+    MAX_SIZE: 5000,
+    RATE_LIMIT_WINDOW: 60 * 1000, // 1 minute
+    RATE_LIMIT_MAX_REQUESTS: 50, // Higher limit for high load
+    PROCESSING_BATCH_SIZE: 10, // Process 10 users at a time
+    POLL_INTERVAL: 5000, // 5 seconds between polls
+  },
 } as const;
 
 // Product types

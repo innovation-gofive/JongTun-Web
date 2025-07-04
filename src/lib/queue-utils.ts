@@ -1,6 +1,8 @@
 // Queue utility functions for backend simulation
 // In production, these will be replaced with actual backend API calls
 
+import { CONSTANTS } from "@/lib/constants";
+
 // Simple in-memory queue for demo (replacing Redis)
 export const mockQueue: Array<{ userId: string; joinedAt: number }> = [];
 export const mockAllowedUsers: Set<string> = new Set();
@@ -11,10 +13,10 @@ export const rateLimitStore = new Map<
   { count: number; resetTime: number }
 >();
 
-// Configuration
-export const MAX_QUEUE_SIZE = 100;
-export const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
-export const RATE_LIMIT_MAX_REQUESTS = 10;
+// Configuration - Using centralized constants
+export const MAX_QUEUE_SIZE = CONSTANTS.QUEUE.MAX_SIZE;
+export const RATE_LIMIT_WINDOW = CONSTANTS.QUEUE.RATE_LIMIT_WINDOW;
+export const RATE_LIMIT_MAX_REQUESTS = CONSTANTS.QUEUE.RATE_LIMIT_MAX_REQUESTS;
 
 // Simple rate limiter
 export function checkRateLimit(identifier: string): {
@@ -85,7 +87,7 @@ export function isUserAllowed(userId: string): boolean {
   return mockAllowedUsers.has(userId);
 }
 
-// Function for admin to manage queue
+// Auto-processing function (แทนที่ manual admin)
 export function processQueue(count: number = 1) {
   const processed = mockQueue.splice(0, count);
   processed.forEach((user) => {
@@ -98,10 +100,28 @@ export function processQueue(count: number = 1) {
   };
 }
 
+// Get queue statistics for monitoring
 export function getQueueStats() {
   return {
     totalInQueue: mockQueue.length,
     allowedUsers: mockAllowedUsers.size,
     oldestInQueue: mockQueue.length > 0 ? mockQueue[0].joinedAt : null,
+  };
+}
+
+// Clean up expired allowed users (สำหรับ auto-cleanup)
+export function cleanupExpiredUsers() {
+  let cleanedCount = 0;
+
+  // Note: ในระบบจริงควรเก็บ timestamp ของการ allow
+  // ตอนนี้จะใช้วิธีง่ายๆ คือ reset เมื่อเรียกใช้
+  if (mockAllowedUsers.size > 0) {
+    cleanedCount = mockAllowedUsers.size;
+    mockAllowedUsers.clear();
+  }
+
+  return {
+    cleanedCount,
+    message: `Cleaned up ${cleanedCount} expired user sessions`,
   };
 }
